@@ -1,17 +1,5 @@
 This Implementation was developed by Jonathan Chen and Hridhay Suresh.
 
-To run this implementation you must have haskell, the Z3 library, and Containers installed.
-
-We imported various libraries into their specific files.  
-
-Once the Z3 library is installed you will need to include Z3 as a library in your extra-include-dirs and your extra-lib-dirs inside of your stack.yaml file.  
-
-Once the above task is completed, you will then need to run the "stack build" command.
-
-Following the stack build command, you will need to then run the command "stack run /path/to/program.imp" with "/path/to/program.imp" being the file path to the .imp benchmark file that you would like to run.
-
-We have provided six benchmark tests.  All of our tests are valid.  All of the benchmark tests are in the project_1/proj1/benchmarks/user_generated/valid folder.
-
 # Getting Started
 
 Begin by [installing Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade) on your local machine.
