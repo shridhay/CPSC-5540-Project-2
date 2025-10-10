@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing_extensions import Self, Union
 import re
 import numpy as np
+from fractions import Fraction
 
 def lex(sexpr):
     sexpr = sexpr.replace("(", " ( ").replace(")", " ) ")
