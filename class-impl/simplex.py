@@ -183,7 +183,7 @@ class Plus(SmtLib):
                 return me
 
     def pretty(self) -> str:
-        return f"Plus({','.join([a.pretty for a in self.parts])})"
+        return f"Plus({','.join([a.pretty() for a in self.parts])})"
 
 class Minus(SmtLib):
     parts: list[Term]
@@ -202,7 +202,7 @@ class Minus(SmtLib):
                 return me
 
     def pretty(self) -> str:
-        return f"Minus({','.join([a.pretty for a in self.parts])})"
+        return f"Minus({','.join([a.pretty() for a in self.parts])})"
 
 class Times(SmtLib):
     coef: Rational
