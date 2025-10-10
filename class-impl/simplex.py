@@ -270,9 +270,11 @@ class Var(SmtLib):
 
 if __name__ == "__main__":
     # print(Script.parse(lex("(assert (and (>= x 1) (<= (* 2 x) 1)))  ( assert (= 1 1 ))")).pretty())
+    ILP = False
     if len(sys.argv) > 1:
+        path = str(sys.argv[1])
         try:
-            with open(sys.argv[1], 'r') as f:
+            with open(path, 'r') as f:
                 content = f.read()
                 print("File content:")
                 print(content)
@@ -280,3 +282,7 @@ if __name__ == "__main__":
                 print(f"Error: File '{file_path}' not found.")
     else:
         print("Usage: python process_file.py <path_to_text_file>")
+    if len(sys.argv) > 2:
+        s = str(sys.argv[2])
+        if s == "--i":
+            ILP = True
