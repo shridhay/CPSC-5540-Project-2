@@ -269,4 +269,14 @@ class Var(SmtLib):
         return f"Var({self.name})"
 
 if __name__ == "__main__":
-    print(Script.parse(lex("(assert (and (>= x 1) (<= (* 2 x) 1)))  ( assert (= 1 1 ))")).pretty())
+    # print(Script.parse(lex("(assert (and (>= x 1) (<= (* 2 x) 1)))  ( assert (= 1 1 ))")).pretty())
+    if len(sys.argv) > 1:
+        try:
+            with open(sys.argv[1], 'r') as f:
+                content = f.read()
+                print("File content:")
+                print(content)
+            except FileNotFoundError:
+                print(f"Error: File '{file_path}' not found.")
+    else:
+        print("Usage: python process_file.py <path_to_text_file>")
