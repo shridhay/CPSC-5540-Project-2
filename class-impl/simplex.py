@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing_extensions import Self, Union
 import re
+import numpy as np
 
 def lex(sexpr):
     sexpr = sexpr.replace("(", " ( ").replace(")", " ) ")
