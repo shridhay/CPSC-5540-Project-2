@@ -1,0 +1,2 @@
+(assert (and (>= (+ a b c) 1) (<= (+ a b c) 1) (<= (+ a b) 0)))
+(assert (and (<= c 0)))

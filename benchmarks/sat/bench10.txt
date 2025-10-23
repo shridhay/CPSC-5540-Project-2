@@ -1,0 +1,2 @@
+(assert (and (> x 100)))
+(assert (and (< (+ x y) 100)))

@@ -1,0 +1,15 @@
+(assert (and (= (+ (* 10 x) (* 5 y) (* 8 z) (* 2 a) (* 5 c) (* 7 d)) 59)))
+(assert (and (<= x (+ y z))))
+(assert (and (>= y 6)))
+(assert (and (<= z 1)))
+
+(assert (and (> d a)))
+(assert (and (> a b)))
+(assert (and (= a (+ b c))))
+(assert (and (= a (+ b d))))
+(assert (and (> d 10)))
+
+(assert (and (< x -100)))
+(assert (and (< z -100)))
+(assert (and (< a -100)))
+(assert (and (< b 0)))

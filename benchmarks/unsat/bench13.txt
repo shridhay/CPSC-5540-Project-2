@@ -1,0 +1,5 @@
+(assert (and (< (+ a b c) (+ a x y z) )))
+(assert (and (< b (+ x y))))
+(assert (and (< c z)))
+(assert (and (= b z)))
+(assert (and (= c (+ x y))))

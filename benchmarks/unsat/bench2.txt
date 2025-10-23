@@ -1,0 +1,5 @@
+(assert (and (>= a 1) (<= a b) (<= b c) (<= c d) (<= d e) (<= e 1)))
+(assert (and (= x y)))
+(assert (and (= y z)))
+(assert (and (= z 2)))
+(assert (and (= x c)))

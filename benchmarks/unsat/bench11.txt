@@ -1,0 +1,4 @@
+(assert (and (>= y x)))
+(assert (and (>= z y)))
+(assert (and (= (+ x y z) 0)))
+(assert (and (> x 0)))

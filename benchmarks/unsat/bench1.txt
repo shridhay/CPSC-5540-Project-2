@@ -1,0 +1,2 @@
+(assert (and (>= x 1) (<= (+ (* 2 x) y) 1)))
+(assert (and (> y 0)))

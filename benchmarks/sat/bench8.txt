@@ -1,0 +1,4 @@
+(assert (and (>= (+ (* 4 x) (* 4 y) z) 36)))
+(assert (and (<= x 4)))
+(assert (and (<= y 4)))
+(assert (and (<= z 4)))
