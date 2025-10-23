@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing_extensions import Self, Union
 import re
 import numpy as np
 from fractions import Fraction
@@ -110,7 +109,7 @@ class Formula(SmtLib):
 class Atom(SmtLib):
     # atom ::= (b Term Term)
     # b ::= < | > | >= | <= | =
-    
+
     op: str
     lhs: Term
     rhs: Term
@@ -269,7 +268,6 @@ class Var(SmtLib):
         return f"Var({self.name})"
 
 if __name__ == "__main__":
-    # print(Script.parse(lex("(assert (and (>= x 1) (<= (* 2 x) 1)))  ( assert (= 1 1 ))")).pretty())
     ILP = False
     if len(sys.argv) > 1:
         path = str(sys.argv[1])
@@ -278,11 +276,12 @@ if __name__ == "__main__":
                 content = f.read()
                 print("File content:")
                 print(content)
+                print(Script.parse(lex(content)).pretty())
+                # if len(sys.argv) > 2:
+                #     s = str(sys.argv[2])
+                #     if s == "--i":
+                #         ILP = True
         except FileNotFoundError:
             print(f"Error: File '{file_path}' not found.")
     else:
         print("Usage: python process_file.py <path_to_text_file>")
-    if len(sys.argv) > 2:
-        s = str(sys.argv[2])
-        if s == "--i":
-            ILP = True
