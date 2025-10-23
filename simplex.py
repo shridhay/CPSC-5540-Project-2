@@ -278,8 +278,8 @@ if __name__ == "__main__":
                 content = f.read()
                 print("File content:")
                 print(content)
-            except FileNotFoundError:
-                print(f"Error: File '{file_path}' not found.")
+        except FileNotFoundError:
+            print(f"Error: File '{file_path}' not found.")
     else:
         print("Usage: python process_file.py <path_to_text_file>")
     if len(sys.argv) > 2:
