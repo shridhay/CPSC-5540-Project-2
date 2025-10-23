@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import re
 import numpy as np
 from fractions import Fraction
@@ -33,6 +34,7 @@ class SmtLib(ABC):
     def pretty(self) -> str:
         raise NotImplementedError()
 
+@dataclass
 class Script(SmtLib):
     # Script ::= Command+
     
@@ -59,6 +61,7 @@ class Script(SmtLib):
         ## TODO: The bulk of the work will be in here
         raise NotImplementedError()
 
+@dataclass
 class Command(SmtLib):
     # Command ::= (assert Formula)
     
@@ -79,6 +82,7 @@ class Command(SmtLib):
     def pretty(self) -> str:
         return f"Command({self.formula.pretty()})"
 
+@dataclass
 class Formula(SmtLib):
     # formula ::= Atom | (and Atom+)
     
@@ -106,6 +110,7 @@ class Formula(SmtLib):
         nl = "\n"
         return f"Formula({nl + (',' + nl).join([a.pretty() for a in self.atoms])})"
 
+@dataclass
 class Atom(SmtLib):
     # atom ::= (b Term Term)
     # b ::= < | > | >= | <= | =
@@ -138,6 +143,7 @@ class Atom(SmtLib):
     def pretty(self) -> str:
         return f"Atom(op=\"{self.op}\", lhs={self.lhs.pretty()}, rhs={self.rhs.pretty()})"
 
+@dataclass
 class Term(SmtLib):
     # term ::= (+ Term+) | (- Term+) | (* Rational Term) | Rational | Var
     
@@ -168,6 +174,7 @@ class Term(SmtLib):
     def pretty(self) -> str:
         return f"Term({self.variant.pretty()})"
 
+@dataclass
 class Plus(SmtLib):
     parts: list[Term]
     
@@ -187,6 +194,7 @@ class Plus(SmtLib):
     def pretty(self) -> str:
         return f"Plus({','.join([a.pretty() for a in self.parts])})"
 
+@dataclass
 class Minus(SmtLib):
     parts: list[Term]
     
@@ -206,6 +214,7 @@ class Minus(SmtLib):
     def pretty(self) -> str:
         return f"Minus({','.join([a.pretty() for a in self.parts])})"
 
+@dataclass
 class Times(SmtLib):
     coef: Rational
     part: Term
@@ -224,7 +233,7 @@ class Times(SmtLib):
     def pretty(self) -> str:
         return f"Times(coef={self.coef.pretty()}, part={self.part.pretty()})"
 
-
+@dataclass
 class Rational(SmtLib):
     positive: bool
     num: int
@@ -254,6 +263,7 @@ class Rational(SmtLib):
     def pretty(self) -> str:
         return f"Rational({'-' if not self.positive else ''}{self.num}/{self.denom})"
 
+@dataclass
 class Var(SmtLib):
     name: str
 
