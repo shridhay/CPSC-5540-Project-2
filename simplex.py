@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import re
+from typing import Self, Union
 import numpy as np
 from fractions import Fraction
 import sys
@@ -292,6 +293,6 @@ if __name__ == "__main__":
                 #     if s == "--i":
                 #         ILP = True
         except FileNotFoundError:
-            print(f"Error: File '{file_path}' not found.")
+            print(f"Error: File '{path}' not found.")
     else:
         print("Usage: python process_file.py <path_to_text_file>")
