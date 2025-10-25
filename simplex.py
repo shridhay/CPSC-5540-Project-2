@@ -34,6 +34,10 @@ class SmtLib(ABC):
     @abstractmethod
     def pretty(self) -> str:
         raise NotImplementedError()
+    
+    @abstractmethod
+    def getVars(self) -> list[str]:
+        raise NotImplementedError()
 
 @dataclass
 class Script(SmtLib):
@@ -61,6 +65,9 @@ class Script(SmtLib):
     def check_sat(self):
         ## TODO: The bulk of the work will be in here
         raise NotImplementedError()
+    
+    def getVars(self) -> list[str]:
+        return sorted({var for cmd in self.commands for var in cmd.getVars()})
 
 @dataclass
 class Command(SmtLib):
@@ -82,6 +89,9 @@ class Command(SmtLib):
 
     def pretty(self) -> str:
         return f"Command({self.formula.pretty()})"
+    
+    def getVars(self) -> list[str]:
+        return self.formula.getVars()
 
 @dataclass
 class Formula(SmtLib):
@@ -110,6 +120,9 @@ class Formula(SmtLib):
     def pretty(self) -> str:
         nl = "\n"
         return f"Formula({nl + (',' + nl).join([a.pretty() for a in self.atoms])})"
+    
+    def getVars(self) -> list[str]:
+        return sorted({var for atom in self.atoms for var in atom.getVars()})
 
 @dataclass
 class Atom(SmtLib):
@@ -143,6 +156,10 @@ class Atom(SmtLib):
 
     def pretty(self) -> str:
         return f"Atom(op=\"{self.op}\", lhs={self.lhs.pretty()}, rhs={self.rhs.pretty()})"
+    
+    def getVars(self) -> list[str]:
+        return sorted(set(self.lhs.getVars()) | set(self.rhs.getVars()))
+
 
 @dataclass
 class Term(SmtLib):
@@ -174,6 +191,9 @@ class Term(SmtLib):
 
     def pretty(self) -> str:
         return f"Term({self.variant.pretty()})"
+    
+    def getVars(self) -> list[str]:
+        return self.variant.getVars()
 
 @dataclass
 class Plus(SmtLib):
@@ -194,6 +214,9 @@ class Plus(SmtLib):
 
     def pretty(self) -> str:
         return f"Plus({','.join([a.pretty() for a in self.parts])})"
+    
+    def getVars(self) -> list[str]:
+        return sorted({var for part in self.parts for var in part.getVars()})
 
 @dataclass
 class Minus(SmtLib):
@@ -214,6 +237,9 @@ class Minus(SmtLib):
 
     def pretty(self) -> str:
         return f"Minus({','.join([a.pretty() for a in self.parts])})"
+    
+    def getVars(self) -> list[str]:
+        return sorted({var for part in self.parts for var in part.getVars()})
 
 @dataclass
 class Times(SmtLib):
@@ -233,6 +259,9 @@ class Times(SmtLib):
 
     def pretty(self) -> str:
         return f"Times(coef={self.coef.pretty()}, part={self.part.pretty()})"
+    
+    def getVars(self) -> list[str]:
+        return self.part.getVars()
 
 @dataclass
 class Rational(SmtLib):
@@ -263,6 +292,9 @@ class Rational(SmtLib):
 
     def pretty(self) -> str:
         return f"Rational({'-' if not self.positive else ''}{self.num}/{self.denom})"
+    
+    def getVars(self) -> list[str]:
+        return []
 
 @dataclass
 class Var(SmtLib):
@@ -277,6 +309,9 @@ class Var(SmtLib):
 
     def pretty(self) -> str:
         return f"Var({self.name})"
+    
+    def getVars(self) -> list[str]:
+        return [self.name]
 
 if __name__ == "__main__":
     ILP = False
@@ -287,7 +322,10 @@ if __name__ == "__main__":
                 content = f.read()
                 print("File content:")
                 print(content)
+                print("\nParse tree:")
                 print(Script.parse(lex(content)).pretty())
+                print("\nVariables:")
+                print(Script.parse(lex(content)).getVars())
                 # if len(sys.argv) > 2:
                 #     s = str(sys.argv[2])
                 #     if s == "--i":
