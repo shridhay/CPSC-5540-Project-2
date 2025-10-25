@@ -5,6 +5,7 @@ import re
 from typing import Self, Union
 import numpy as np
 from fractions import Fraction
+from functools import reduce
 import sys
 
 def lex(sexpr):
@@ -12,6 +13,24 @@ def lex(sexpr):
     l = sexpr.split()
     for token in l:
         yield token
+
+def dictplus(d1, d2):
+    out = d1.copy()
+    for k, v in d2.items():
+        if k in d1:
+            out[k] += v 
+        else:
+            out[k] = v 
+    return out
+
+def dictminus(d1, d2):
+    out = d1.copy()
+    for k, v in d2.items():
+        if k in d1:
+            out[k] -= v 
+        else:
+            out[k] = -v 
+    return out
 
 class AtomShouldBeFormulaException(Exception):
     def __init__(self, message="This atom is actually a formula."):
@@ -68,6 +87,33 @@ class Script(SmtLib):
     
     def getVars(self) -> list[str]:
         return sorted({var for cmd in self.commands for var in cmd.getVars()})
+    
+    def coef(self) -> list[str]:
+        l = []
+        for cmd in self.commands:
+            l += cmd.coef()
+        return l
+    
+    def tableau_args(self):
+        vars = self.getVars()
+        coefs = self.coef()
+
+        # plus and minus version for each variable, plus x_0 at the end
+        A = np.zeros((len(coefs), 2 * len(vars) + 1))
+        b = np.zeros(len(coefs))
+        c = np.zeros(2 * len(vars) + 1)
+        c[-1] = -1
+
+        for i, constraint in enumerate(coefs):
+            for var, val in constraint.items():
+                if var == "_c":
+                    b[i] = val
+                else:
+                    var_idx = vars.index(var)
+                    A[i][2 * var_idx] = val
+                    A[i][2 * var_idx + 1] = val
+
+        return A, b, c
 
 @dataclass
 class Command(SmtLib):
@@ -92,6 +138,10 @@ class Command(SmtLib):
     
     def getVars(self) -> list[str]:
         return self.formula.getVars()
+    
+    def coef(self) -> list[dict]:
+        # compute coefficients of A_i x <= b_i
+        return self.formula.coef()
 
 @dataclass
 class Formula(SmtLib):
@@ -123,6 +173,12 @@ class Formula(SmtLib):
     
     def getVars(self) -> list[str]:
         return sorted({var for atom in self.atoms for var in atom.getVars()})
+    
+    def coef(self) -> list[str]:
+        l = []
+        for atom in self.atoms:
+            l += atom.coef()
+        return l
 
 @dataclass
 class Atom(SmtLib):
@@ -159,6 +215,26 @@ class Atom(SmtLib):
     
     def getVars(self) -> list[str]:
         return sorted(set(self.lhs.getVars()) | set(self.rhs.getVars()))
+    
+    def coef(self) -> list[dict]:
+        # compute coefficients of A_i x <= b_i
+        if self.op == ">":
+            new_atom = Atom("<=", Plus.from_parts([self.rhs, Rational("1/1000")]), self.lhs)
+            return new_atom.coef()
+        elif self.op == "<":
+            new_atom = Atom("<=", Plus.from_parts([self.lhs, Rational("1/1000")]), self.rhs)
+            return new_atom.coef()
+        elif self.op == ">=":
+            new_atom = Atom("<=", self.rhs, self.lhs)
+            return new_atom.coef()
+        elif self.op == "=":
+            new_atom1 = Atom("<=", self.lhs, self.rhs)
+            new_atom2 = Atom("<=", self.rhs, self.lhs)
+            return new_atom1.coef() + new_atom2.coef()
+        elif self.op == "<=":
+            lhs_coef: dict = self.lhs.coef()
+            rhs_coef: dict  = self.rhs.coef()
+            return [dictminus(lhs_coef, rhs_coef)]
 
 
 @dataclass
@@ -194,6 +270,9 @@ class Term(SmtLib):
     
     def getVars(self) -> list[str]:
         return self.variant.getVars()
+    
+    def coef(self) -> dict:
+        return self.variant.coef()
 
 @dataclass
 class Plus(SmtLib):
@@ -201,6 +280,12 @@ class Plus(SmtLib):
     
     def __init__(self):
         self.parts = []
+
+    @classmethod
+    def from_parts(cls, parts):
+        me = cls()
+        me.parts = parts 
+        return me
 
     @classmethod
     def parse(cls, lexer):
@@ -217,6 +302,9 @@ class Plus(SmtLib):
     
     def getVars(self) -> list[str]:
         return sorted({var for part in self.parts for var in part.getVars()})
+    
+    def coef(self) -> dict:
+        return reduce(dictplus, [part.coef() for part in self.parts])
 
 @dataclass
 class Minus(SmtLib):
@@ -224,6 +312,12 @@ class Minus(SmtLib):
     
     def __init__(self):
         self.parts = []
+
+    @classmethod
+    def from_parts(cls, parts):
+        me = cls()
+        me.parts = parts 
+        return me
 
     @classmethod
     def parse(cls, lexer):
@@ -240,14 +334,17 @@ class Minus(SmtLib):
     
     def getVars(self) -> list[str]:
         return sorted({var for part in self.parts for var in part.getVars()})
+    
+    def coef(self) -> dict:
+        return reduce(dictminus, [part.coef() for part in self.parts])
 
 @dataclass
 class Times(SmtLib):
-    coef: Rational
+    mul_by: Rational
     part: Term
     
-    def __init__(self, coef, part):
-        self.coef = coef
+    def __init__(self, mul_by, part):
+        self.mul_by = mul_by
         self.part = part
 
     @classmethod
@@ -258,10 +355,13 @@ class Times(SmtLib):
         return cls(Rational(num), part)
 
     def pretty(self) -> str:
-        return f"Times(coef={self.coef.pretty()}, part={self.part.pretty()})"
+        return f"Times(mul_by={self.mul_by.pretty()}, part={self.part.pretty()})"
     
     def getVars(self) -> list[str]:
         return self.part.getVars()
+    
+    def coef(self) -> dict:
+        return {k : v * self.mul_by.to_float() for k, v in self.part.coef().items()}
 
 @dataclass
 class Rational(SmtLib):
@@ -289,12 +389,18 @@ class Rational(SmtLib):
     @classmethod
     def parse(cls, lexer):
         raise NotImplementedError()
+    
+    def to_float(self):
+        return (1 if self.positive else -1) * self.num / self.denom
 
     def pretty(self) -> str:
         return f"Rational({'-' if not self.positive else ''}{self.num}/{self.denom})"
     
     def getVars(self) -> list[str]:
         return []
+    
+    def coef(self) -> dict:
+        return {"_c": -self.to_float()}
 
 @dataclass
 class Var(SmtLib):
@@ -312,6 +418,9 @@ class Var(SmtLib):
     
     def getVars(self) -> list[str]:
         return [self.name]
+    
+    def coef(self) -> dict:
+        return {self.name : 1}
 
 if __name__ == "__main__":
     ILP = False
@@ -322,10 +431,20 @@ if __name__ == "__main__":
                 content = f.read()
                 print("File content:")
                 print(content)
+                ast = Script.parse(lex(content))
                 print("\nParse tree:")
-                print(Script.parse(lex(content)).pretty())
+                print(ast.pretty())
                 print("\nVariables:")
-                print(Script.parse(lex(content)).getVars())
+                print(ast.getVars())
+                print("\nCoefficients:")
+                print(ast.coef())
+                A, b, c = ast.tableau_args()
+                print("\nA:")
+                print(A)
+                print("\nb:")
+                print(b)
+                print("\nc:")
+                print(c)
                 # if len(sys.argv) > 2:
                 #     s = str(sys.argv[2])
                 #     if s == "--i":
