@@ -112,6 +112,7 @@ class Script(SmtLib):
                     var_idx = vars.index(var)
                     A[i][2 * var_idx] = val
                     A[i][2 * var_idx + 1] = val
+            A[i][-1] = 1       # i0
 
         return A, b, c
 
