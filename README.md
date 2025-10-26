@@ -25,7 +25,7 @@ This directory provides the verifying library that contains the bulk of the logi
 
 ## `test`
 
-This directory provides a basic test suite that collects programs from the `benchmarks` directory and executes your implementation over them. It confirms that all verifiable programs are verified and vice versa. You can add your custom benchmarks to the appropriate directory. Also feel free to add more granular tests to the suite in `Spec.hs`.
+This directory provides a basic test suite that collects programs from the `benchmarks` directory and executes your implementation over them. It confirms that all verifiable programs are verified and vice versa. 
 
 # Continuous Integration
 
