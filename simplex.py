@@ -8,6 +8,44 @@ from fractions import Fraction
 from functools import reduce
 import sys
 
+def simplex(a, b, c):
+    rows = a.shape[0]
+    b = b.reshape(-1, 1)
+    T = np.vstack([np.hstack([a, np.identity(rows), b]), 
+                   np.hstack([c, np.zeros(rows + 1)])])
+    while(True):
+        print(T)
+        entering_idx, exiting_idx = None, None
+        if (T[-1, :-1] <= 0).all():
+            print("Satisfied")
+            solution = -T[-1, -1]
+            print(f"Solution: {solution}")
+            return solution
+        else:
+            entering_idx, value = None, 0
+            for idx in range(len(T[-1, :-1])):
+                if T[-1, :-1][idx] > value:
+                    entering_idx = idx
+                    value = T[-1, :-1][idx]
+        exiting_idx, value = None, float("inf")
+        for idx in range(len(T[:-1, -1])):
+            if T[:-1, -1][idx] >= 0 and T[:-1, entering_idx][idx] > 0:
+                v = T[:-1, -1][idx]/T[:-1, entering_idx][idx]
+                if v < value:
+                    exiting_idx = idx
+                    value = v
+        if exiting_idx is None:
+            print("Unsatisfiable")
+            return None
+        rows = T.shape[0]
+        v = T[exiting_idx, entering_idx]
+        T[exiting_idx, :] = T[exiting_idx, :] / v
+        for idx in range(rows):
+            if idx == exiting_idx:
+                continue
+            else:
+                T[idx, :] = T[idx, : ] - (T[idx, entering_idx] * T[exiting_idx, :])
+
 def lex(sexpr):
     sexpr = sexpr.replace("(", " ( ").replace(")", " ) ")
     l = sexpr.split()
@@ -422,6 +460,7 @@ class Var(SmtLib):
     
     def coef(self) -> dict:
         return {self.name : 1}
+
 
 if __name__ == "__main__":
     ILP = False
