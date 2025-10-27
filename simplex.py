@@ -483,6 +483,7 @@ if __name__ == "__main__":
                 print(b)
                 print("\nc:")
                 print(c)
+                simplex(A, b, c)
                 # if len(sys.argv) > 2:
                 #     s = str(sys.argv[2])
                 #     if s == "--i":
