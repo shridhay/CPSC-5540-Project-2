@@ -18,7 +18,7 @@ def simplex(a, b, c):
         entering_idx, exiting_idx = None, None
         if (T[-1, :-1] <= 0).all():
             print("Satisfied")
-            solution, values = -T[-1, -1], get_solution(T)
+            solution = -T[-1, -1]
             print(f"Solution: {solution}")
             return solution
         else:
