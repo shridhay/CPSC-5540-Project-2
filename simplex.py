@@ -18,7 +18,7 @@ def simplex(a, b, c):
         entering_idx, exiting_idx = None, None
         if (T[-1, :-1] <= 0).all():
             print("Satisfied")
-            solution = -T[-1, -1]
+            solution, values = -T[-1, -1], get_solution(T)
             print(f"Solution: {solution}")
             return solution
         else:
@@ -41,11 +41,9 @@ def simplex(a, b, c):
         v = T[exiting_idx, entering_idx]
         T[exiting_idx, :] = T[exiting_idx, :] / v
         for idx in range(rows):
-            if idx == exiting_idx:
-                continue
-            else:
+            if idx != exiting_idx:
                 T[idx, :] = T[idx, : ] - (T[idx, entering_idx] * T[exiting_idx, :])
-
+                
 def lex(sexpr):
     sexpr = sexpr.replace("(", " ( ").replace(")", " ) ")
     l = sexpr.split()
