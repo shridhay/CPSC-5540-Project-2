@@ -7,59 +7,151 @@ import numpy as np
 from fractions import Fraction
 from functools import reduce
 import sys
+import time
+
+DEBUG = False
+
+def test_simplex():
+    def approx_leq(x, y):
+        return ((x <= y) | np.isclose(x, y)).all()
+
+    # Examples from the UBC website
+    A = np.array([[2.,1.,1.,3.],[1.,3.,1.,2.]])
+    c = np.array([6.,8.,5.,9.])
+    b = np.array([5.,3.])
+    r = np.array([2., 0., 1., 0.])
+    actual = simplex(A, b, c)
+    np.testing.assert_allclose(actual[1], r)
+    np.testing.assert_array_compare(approx_leq, A @ actual[1], b)
+    np.testing.assert_almost_equal(actual[0], c.T @ actual[1])
+
+    A = np.array([[0,2,3],[1,1,2],[1,2,3]])
+    b = np.array([5,4,7])
+    c = np.array([2,3,4])
+    r = np.array([1.5, 2.5, 0.])
+    actual = simplex(A, b, c)
+    np.testing.assert_allclose(actual[1], r)
+    np.testing.assert_array_compare(approx_leq, A @ actual[1], b)
+    np.testing.assert_almost_equal(actual[0], c.T @ actual[1])
+
+    A = np.array([[-1,-1,-1,-1],[2,-1,1,-1]])
+    b = np.array([-2,1])
+    c = np.array([0,0,0,-1])
+    actual = simplex(A, b, c)
+    np.testing.assert_almost_equal(actual[0], 0)
+    np.testing.assert_array_compare(approx_leq, A @ actual[1], b)
+    np.testing.assert_almost_equal(actual[0], c.T @ actual[1])
 
 def simplex(a, b, c):
+    """
+    Runs the Simplex algorithm using the tableau matrix.
+
+    Returns
+    - if no feasible solution:     None
+    - if exists feasible solution: tuple(Max objective value, Array of assignments) 
+
+    Reference: https://ubcmath.github.io/python/linear-programming/simplex.html
+    """
 
     # Putting together the tableau data structure
     rows, cols = a.shape
     b = b.reshape(-1, 1)
-    T = np.vstack([np.hstack([a, np.identity(rows), b]), 
-                   np.hstack([c, np.zeros(rows + 1)])])
+    I = np.identity(rows, dtype='int64')+Fraction()
+    z = np.zeros(rows + 1, dtype='int64')+Fraction()
+    T = np.vstack([np.hstack([a, I, b]), 
+                   np.hstack([c, z])])
     
-    # Run the Simplex Algorithm until it breaks out of the loop
-    while(True):
+    if DEBUG:
         print(T)
-        entering_idx, exiting_idx = None, None
-        if (T[-1, :-1] <= 0).all():
-            print("Satisfied")
-            # Get the values of all of the decision variables
-            values = np.zeros(b.shape[0] + len(c))
-            for idx in range(b.shape[0] + len(c)):
-                if np.count_nonzero(T[:-1, idx]) == 1 and np.isclose(T[:-1, idx][T[:-1, idx] != 0], 1):
-                    values[idx] = T[(T[:-1, idx] == 1).argmax(), -1]
-            values = values[:cols]
-            print(f"Solution: {-T[-1, -1]}")
-            print(values)
-            return -T[-1, -1], values
+    basis = np.arange(cols, cols + rows)
+    
+    if (c <= 0).all():
+        if (b >= 0).all():
+            return 0, np.zeros(rows, dtype='int64') + Fraction()
         
-        # Deteriming the Entering Value
-        value = 0
-        for idx in range(len(T[-1, :-1])):
-            if T[-1, :-1][idx] > value:
-                entering_idx = idx
-                value = T[-1, :-1][idx]
+        # Pivot x0 away
+        entering_idx, exiting_idx = cols - 1, None
 
         # Deterimining the Exit Value
-        value = float("inf")
+        value = 0
         for idx in range(len(T[:-1, -1])):
-            if T[:-1, -1][idx] >= 0 and T[:-1, entering_idx][idx] > 0:
+            if T[:-1, -1][idx] <= 0:
                 v = T[:-1, -1][idx]/T[:-1, entering_idx][idx]
-                if v < value:
+                if v > value:
                     exiting_idx = idx
                     value = v
-
-        # If the exit value cannot be determined, the problem is unsatisfiable.
-        if exiting_idx is None:
-            print("Unsatisfiable")
-            return None
         
         # Doing the Pivot operation with the entering and exiting indices
         rows = T.shape[0]
+        if DEBUG:
+            print(exiting_idx, entering_idx)
+        basis[exiting_idx] = entering_idx
         v = T[exiting_idx, entering_idx]
         T[exiting_idx, :] = T[exiting_idx, :] / v
         for idx in range(rows):
             if idx != exiting_idx:
                 T[idx, :] = T[idx, :] - (T[idx, entering_idx] * T[exiting_idx, :])
+
+    # Run the Simplex Algorithm until it breaks out of the loop
+    while(True):
+        if DEBUG:
+            print(T)
+        entering_idx, exiting_idx = None, None
+        
+        #print(T[-1, :-1])
+        if (T[-1, :-1] <= 0).all():
+            # print("Satisfied")
+            # Get the values of all of the decision variables
+            values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
+            for idx in basis:
+                values[idx] = T[(T[:-1, idx] == 1).argmax(), -1]
+            values = values[:cols]
+            # {-T[-1, -1]}")
+            #print(values)
+            return -T[-1, -1], values
+        
+        # Deteriming the Entering Value
+        value = 0
+        for idx in range(len(T[-1, :-1])):
+            # Bland's rule, to avoid cycles
+            if T[-1, :-1][idx] > 0:
+                entering_idx = idx
+                break
+            #if T[-1, :-1][idx] > value:
+            #    entering_idx = idx
+            #    value = T[-1, :-1][idx]
+
+        # Deterimining the Exit Value
+        value = float("inf")
+        for idx in range(len(T[:-1, -1])):
+            if T[:-1, -1][idx] >= 0 and T[:-1, entering_idx][idx] > 1e-5:
+                v = T[:-1, -1][idx]/T[:-1, entering_idx][idx]
+                if v < value:
+                    exiting_idx = idx
+                    value = v
+
+        # If the exit value cannot be determined, terminate.
+        if exiting_idx is None:
+            # print("Unsatisfiable")
+            values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
+            for idx in basis:
+                values[idx] = T[(T[:-1, idx] == 1).argmax(), -1]
+            values = values[:cols]
+            return -T[-1, -1], values
+        
+        # Doing the Pivot operation with the entering and exiting indices
+        rows = T.shape[0]
+        if DEBUG:
+            print(exiting_idx, entering_idx)
+        v = T[exiting_idx, entering_idx]
+        T[exiting_idx, :] = T[exiting_idx, :] / v
+        for idx in range(rows):
+            if idx != exiting_idx:
+                basis[exiting_idx] = entering_idx
+                T[idx, :] = T[idx, :] - (T[idx, entering_idx] * T[exiting_idx, :])
+
+        if DEBUG:
+            time.sleep(0.5)
 
                 
 def lex(sexpr):
@@ -134,10 +226,6 @@ class Script(SmtLib):
     def pretty(self) -> str:
         nl = "\n"
         return f"Script({nl + (',' + nl).join([c.pretty() for c in self.commands])})"
-
-    def check_sat(self):
-        ## TODO: The bulk of the work will be in here
-        raise NotImplementedError()
     
     def getVars(self) -> list[str]:
         return sorted({var for cmd in self.commands for var in cmd.getVars()})
@@ -153,9 +241,9 @@ class Script(SmtLib):
         coefs = self.coef()
 
         # plus and minus version for each variable, plus x_0 at the end
-        A = np.zeros((len(coefs), 2 * len(vars) + 1))
-        b = np.zeros(len(coefs))
-        c = np.zeros(2 * len(vars) + 1)
+        A = np.zeros((len(coefs), 2 * len(vars) + 1), dtype='int64') + Fraction()
+        b = np.zeros(len(coefs), dtype='int64') + Fraction()
+        c = np.zeros(2 * len(vars) + 1, dtype='int64') + Fraction()
         c[-1] = -1
 
         for i, constraint in enumerate(coefs):
@@ -165,10 +253,28 @@ class Script(SmtLib):
                 else:
                     var_idx = vars.index(var)
                     A[i][2 * var_idx] = val
-                    A[i][2 * var_idx + 1] = val
-            A[i][-1] = -1       # x0
+                    A[i][2 * var_idx + 1] = -val
+            A[i][-1] = Fraction(-1)       # x0
 
-        return A, b, c
+        return A, b, c, vars
+    
+    def check_sat(self):
+        """
+        Prints a satisfying solution. Does not return anything.
+        """
+        A, b, c, vars = self.tableau_args()
+        if (b >= 0).all():
+            for i, v in enumerate(vars):
+                print(f"{v}=0")
+        else:
+            soln = simplex(A, b, c)
+            if soln is None or np.abs(soln[0] - 0) > 1e-5:
+                print("UNSAT")
+            else:
+                assn = soln[1]
+                for i, v in enumerate(vars):
+                    print(f"{v}={assn[2*i]-assn[2*i+1]}")
+        
 
 @dataclass
 class Command(SmtLib):
@@ -229,7 +335,7 @@ class Formula(SmtLib):
     def getVars(self) -> list[str]:
         return sorted({var for atom in self.atoms for var in atom.getVars()})
     
-    def coef(self) -> list[str]:
+    def coef(self) -> list[dict]:
         l = []
         for atom in self.atoms:
             l += atom.coef()
@@ -382,6 +488,8 @@ class Minus(SmtLib):
                 next_term = Term.parse(lexer)
                 me.parts.append(next_term)
             except CloseParenException:
+                if len(me.parts) == 0:
+                    me.parts = [0] + me.parts
                 return me
 
     def pretty(self) -> str:
@@ -416,7 +524,7 @@ class Times(SmtLib):
         return self.part.getVars()
     
     def coef(self) -> dict:
-        return {k : v * self.mul_by.to_float() for k, v in self.part.coef().items()}
+        return {k : v * self.mul_by.to_fractional() for k, v in self.part.coef().items()}
 
 @dataclass
 class Rational(SmtLib):
@@ -447,6 +555,9 @@ class Rational(SmtLib):
     
     def to_float(self):
         return (1 if self.positive else -1) * self.num / self.denom
+    
+    def to_fractional(self):
+        return Fraction((1 if self.positive else -1) * self.num, self.denom)
 
     def pretty(self) -> str:
         return f"Rational({'-' if not self.positive else ''}{self.num}/{self.denom})"
@@ -455,7 +566,7 @@ class Rational(SmtLib):
         return []
     
     def coef(self) -> dict:
-        return {"_c": -self.to_float()}
+        return {"_c": -self.to_fractional()}
 
 @dataclass
 class Var(SmtLib):
@@ -475,33 +586,41 @@ class Var(SmtLib):
         return [self.name]
     
     def coef(self) -> dict:
-        return {self.name : 1}
+        return {self.name : Fraction(1)}
 
 
 if __name__ == "__main__":
     ILP = False
     if len(sys.argv) > 1:
         path = str(sys.argv[1])
+        print(f"Verifying {path}...")
+        
         try:
             with open(path, 'r') as f:
                 content = f.read()
-                print("File content:")
-                print(content)
+                #print(content)
+                
                 ast = Script.parse(lex(content))
-                print("\nParse tree:")
-                print(ast.pretty())
-                print("\nVariables:")
-                print(ast.getVars())
-                print("\nCoefficients:")
-                print(ast.coef())
-                A, b, c = ast.tableau_args()
-                print("\nA:")
-                print(A)
-                print("\nb:")
-                print(b)
-                print("\nc:")
-                print(c)
-                simplex(A, b, c)
+                A, b, c, _ = ast.tableau_args()
+                if DEBUG:
+                    #print("File content:")
+                    #print(content)
+                    print("\nParse tree:")
+                    print(ast.pretty())
+                    #print("\nVariables:")
+                    #print(ast.getVars())
+                    print("\nCoefficients:")
+                    print(ast.coef())
+                    print("\nA:")
+                    print(A)
+                    print("\nb:")
+                    print(b)
+                    print("\nc:")
+                    print(c)
+                    #test_simplex()
+                    #print()
+                ast.check_sat()
+                # print(simplex(A, b, c))
                 # if len(sys.argv) > 2:
                 #     s = str(sys.argv[2])
                 #     if s == "--i":
