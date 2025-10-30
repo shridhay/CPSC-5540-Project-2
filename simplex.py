@@ -593,7 +593,7 @@ if __name__ == "__main__":
     ILP = False
     if len(sys.argv) > 1:
         path = str(sys.argv[1])
-        print(f"Verifying {path}...")
+        #print(f"Verifying {path}...")
         
         try:
             with open(path, 'r') as f:
