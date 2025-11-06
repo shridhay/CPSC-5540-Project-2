@@ -8,12 +8,14 @@ from fractions import Fraction
 from functools import reduce
 import sys
 import time
+import copy
 
 DEBUG = False
 
-def test_simplex():
-    def approx_leq(x, y):
+def approx_leq(x, y):
         return ((x <= y) | np.isclose(x, y)).all()
+
+def test_simplex():
 
     # Examples from the UBC website
     A = np.array([[2.,1.,1.,3.],[1.,3.,1.,2.]])
@@ -103,10 +105,15 @@ def simplex(a, b, c):
             # print("Satisfied")
             # Get the values of all of the decision variables
             values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
-            for idx in basis:
-                values[idx] = T[(T[:-1, idx] == 1).argmax(), -1]
+            for idx_i in basis:
+                b = True
+                for idx_j in range(T.shape[0] - 1):
+                    if b and T[idx_j, idx_i] == 1:
+                        values[idx_i] = T[idx_j, - 1]
+                        b = False
+
             values = values[:cols]
-            # {-T[-1, -1]}")
+            # {-T[-1, -1]}
             #print(values)
             return -T[-1, -1], values
         
@@ -117,9 +124,6 @@ def simplex(a, b, c):
             if T[-1, :-1][idx] > 0:
                 entering_idx = idx
                 break
-            #if T[-1, :-1][idx] > value:
-            #    entering_idx = idx
-            #    value = T[-1, :-1][idx]
 
         # Deterimining the Exit Value
         value = float("inf")
@@ -134,8 +138,12 @@ def simplex(a, b, c):
         if exiting_idx is None:
             # print("Unsatisfiable")
             values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
-            for idx in basis:
-                values[idx] = T[(T[:-1, idx] == 1).argmax(), -1]
+            for idx_i in basis:
+                b = True
+                for idx_j in range(T.shape[0] - 1):
+                    if b and T[idx_j, idx_i] == 1:
+                        values[idx_i] = T[idx_j, - 1]
+                        b = False
             values = values[:cols]
             return -T[-1, -1], values
         
@@ -258,7 +266,7 @@ class Script(SmtLib):
 
         return A, b, c, vars
     
-    def check_sat(self):
+    def check_sat(self, ILP = False):
         """
         Prints a satisfying solution. Does not return anything.
         """
@@ -266,6 +274,14 @@ class Script(SmtLib):
         if (b >= 0).all():
             for i, v in enumerate(vars):
                 print(f"{v}=0")
+        elif not(ILP):
+            soln = simplex(A, b, c)
+            if soln is None or np.abs(soln[0] - 0) > 1e-5:
+                print("UNSAT")
+            else:
+                assn = soln[1]
+                for i, v in enumerate(vars):
+                    print(f"{v}={assn[2*i]-assn[2*i+1]}")
         else:
             soln = simplex(A, b, c)
             if soln is None or np.abs(soln[0] - 0) > 1e-5:
@@ -274,7 +290,7 @@ class Script(SmtLib):
                 assn = soln[1]
                 for i, v in enumerate(vars):
                     print(f"{v}={assn[2*i]-assn[2*i+1]}")
-        
+
 
 @dataclass
 class Command(SmtLib):
@@ -592,23 +608,15 @@ class Var(SmtLib):
 if __name__ == "__main__":
     ILP = False
     if len(sys.argv) > 1:
-        path = str(sys.argv[1])
-        #print(f"Verifying {path}...")
-        
+        path = str(sys.argv[1])        
         try:
             with open(path, 'r') as f:
-                content = f.read()
-                #print(content)
-                
+                content = f.read()                
                 ast = Script.parse(lex(content))
                 A, b, c, _ = ast.tableau_args()
                 if DEBUG:
-                    #print("File content:")
-                    #print(content)
                     print("\nParse tree:")
                     print(ast.pretty())
-                    #print("\nVariables:")
-                    #print(ast.getVars())
                     print("\nCoefficients:")
                     print(ast.coef())
                     print("\nA:")
@@ -617,14 +625,14 @@ if __name__ == "__main__":
                     print(b)
                     print("\nc:")
                     print(c)
-                    #test_simplex()
-                    #print()
-                ast.check_sat()
                 # print(simplex(A, b, c))
-                # if len(sys.argv) > 2:
-                #     s = str(sys.argv[2])
-                #     if s == "--i":
-                #         ILP = True
+                if len(sys.argv) > 2:
+                    s = str(sys.argv[2])
+                    if s == "--i":
+                        ILP = True
+                if ILP:
+                    print(f"ILP: {ILP}")
+                ast.check_sat(ILP)
         except FileNotFoundError:
             print(f"Error: File '{path}' not found.")
     else:
