@@ -10,6 +10,6 @@ This program also requires the `numpy` library version 2.2.6, which can be insta
 
 ## Quick Start
 
-To test on a benchmark 1, run `python simplex.py benchmarks/sat/bench1.txt`. If you would like to run a test with Integer Linear Programming (ILP) enabled, use the switch `--i` after the benchmark test. For example, to run test: `benchmarks/sat/bench1.txt` with Integer Linear Programming enabled, run `python simplex.py benchmarks/sat/bench1.txt --i`.
+To test on a benchmark 1, run `python simplex.py benchmarks/sat/bench1.txt` in the terminal. If you would like to run a test with Integer Linear Programming (ILP) enabled, use the switch `--i` after the benchmark test. For example, to run test: `benchmarks/sat/bench1.txt` with Integer Linear Programming enabled, run `python simplex.py benchmarks/sat/bench1.txt --i` in the terminal.
 
 For convenience we have included `./run_tests.sh` which runs over all benchmarks, first without Integer Linear Programming enabled, and then with Integer Linear Programming enabled. This shell file can be executed directly after `chmod +x run_tests.sh`, or indirectly via `sh run_tests.sh`.
