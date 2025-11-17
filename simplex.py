@@ -9,14 +9,19 @@ from functools import reduce
 import sys
 import time
 import copy
+import math
 
 DEBUG = False
+REL_TOL = 1e-5
+ABS_TOL = 1e-5
 
 def approx_leq(x, y):
-        return ((x <= y) | np.isclose(x, y)).all()
+    return ((x <= y) | np.isclose(x, y)).all()
+
+def close_enough(n):
+    return math.isclose(n, round(n), rel_tol=REL_TOL, abs_tol=ABS_TOL)
 
 def test_simplex():
-
     # Examples from the UBC website
     A = np.array([[2.,1.,1.,3.],[1.,3.,1.,2.]])
     c = np.array([6.,8.,5.,9.])
@@ -102,7 +107,6 @@ def simplex(a, b, c):
         
         #print(T[-1, :-1])
         if (T[-1, :-1] <= 0).all():
-            # print("Satisfied")
             # Get the values of all of the decision variables
             values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
             for idx_i in basis:
@@ -136,7 +140,6 @@ def simplex(a, b, c):
 
         # If the exit value cannot be determined, terminate.
         if exiting_idx is None:
-            # print("Unsatisfiable")
             values = np.zeros(b.shape[0] + len(c), dtype='int64') + Fraction()
             for idx_i in basis:
                 b = True
@@ -266,6 +269,16 @@ class Script(SmtLib):
 
         return A, b, c, vars
     
+    def branch_and_bound(self, ILP = False):
+        A, b, c, vars = self.tableau_args()
+        soln = simplex(A, b, c)
+        if soln is None or np.abs(soln[0] - 0) > 1e-5:
+                print("UNSAT")
+        else:
+            assn = soln[1]
+            for i, v in enumerate(vars):
+                print(f"{v}={assn[2*i]-assn[2*i+1]}")
+    
     def check_sat(self, ILP = False):
         """
         Prints a satisfying solution. Does not return anything.
@@ -288,9 +301,14 @@ class Script(SmtLib):
                 print("UNSAT")
             else:
                 assn = soln[1]
+                b = True
                 for i, v in enumerate(vars):
-                    print(f"{v}={assn[2*i]-assn[2*i+1]}")
-
+                    b = b and close_enough(float(assn[2*i]-assn[2*i+1]))
+                if b:
+                    for i, v in enumerate(vars):
+                        print(f"{v}={assn[2*i]-assn[2*i+1]}")
+                else:
+                    self.branch_and_bound(ILP)
 
 @dataclass
 class Command(SmtLib):
@@ -412,7 +430,6 @@ class Atom(SmtLib):
             lhs_coef: dict = self.lhs.coef()
             rhs_coef: dict  = self.rhs.coef()
             return [dictminus(lhs_coef, rhs_coef)]
-
 
 @dataclass
 class Term(SmtLib):
@@ -604,7 +621,6 @@ class Var(SmtLib):
     def coef(self) -> dict:
         return {self.name : Fraction(1)}
 
-
 if __name__ == "__main__":
     ILP = False
     if len(sys.argv) > 1:
@@ -631,9 +647,9 @@ if __name__ == "__main__":
                     if s == "--i":
                         ILP = True
                 if ILP:
-                    print(f"ILP: {ILP}")
+                    print(f"ILP: Enabled")
                 ast.check_sat(ILP)
         except FileNotFoundError:
             print(f"Error: File '{path}' not found.")
     else:
-        print("Usage: python process_file.py <path_to_text_file>")
+        print("Usage: python simplex.py <path_to_text_file>")
