@@ -278,52 +278,90 @@ class Script(SmtLib):
         """
         if fixed_vars is None:
             fixed_vars = {}
+        
         A, b, c, vars = self.tableau_args()
-        for var_idx, value in fixed_vars.items():
-            new_row = np.zeros(A.shape[1], dtype='int64') + Fraction()
-            new_row[2*var_idx] = Fraction(1)      
-            new_row[2*var_idx + 1] = Fraction(-1) 
-            A = np.vstack([A, new_row])
-            b = np.append(b, Fraction(value))
-            new_row = np.zeros(A.shape[1], dtype='int64') + Fraction()
-            new_row[2*var_idx] = Fraction(-1)
-            new_row[2*var_idx + 1] = Fraction(1)
-            A = np.vstack([A, new_row])
-            b = np.append(b, Fraction(-value))
+        
+        # Add bound constraints for fixed variables
+        for var_idx, bounds in fixed_vars.items():
+            floor_val, ceil_val = bounds
+            
+            # Add upper bound constraint: x_i+ - x_i- <= ceil_val (if bounded above)
+            if ceil_val is not None:
+                new_row = np.zeros(A.shape[1], dtype='int64') + Fraction()
+                new_row[2*var_idx] = Fraction(1)
+                new_row[2*var_idx + 1] = Fraction(-1)
+                new_row[-1] = Fraction(-1)  # x0
+                A = np.vstack([A, new_row])
+                b = np.append(b, Fraction(ceil_val))
+            
+            # Add lower bound constraint: -(x_i+ - x_i-) <= -floor_val (if bounded below)
+            # This is equivalent to: x_i >= floor_val
+            if floor_val is not None:
+                new_row = np.zeros(A.shape[1], dtype='int64') + Fraction()
+                new_row[2*var_idx] = Fraction(-1)
+                new_row[2*var_idx + 1] = Fraction(1)
+                new_row[-1] = Fraction(-1)  # x0
+                A = np.vstack([A, new_row])
+                b = np.append(b, Fraction(-floor_val))
+        
+        # Solve the LP relaxation
         soln = simplex(A, b, c)
-        if soln is None or np.abs(soln[0]) > 1e-5:
-            return None  
+        
+        # Check if LP is infeasible or violates x_0 = 0 constraint
+        if soln is None or np.abs(float(soln[0])) > 1e-5:
+            return None  # This branch is infeasible
+        
         assn = soln[1]
+        
+        # Check if all variables are integers
         all_integer = True
         fractional_var_idx = None
+        max_fractional = 0
+        
         for i in range(len(vars)):
             value = float(assn[2*i] - assn[2*i+1])
+            fractional_part = abs(value - round(value))
+            
             if not close_enough(value):
                 all_integer = False
-                if fractional_var_idx is None:
-                    fractional_var_idx = i    
+                # Choose the most fractional variable (closest to 0.5)
+                if fractional_var_idx is None or abs(fractional_part - 0.5) < abs(max_fractional - 0.5):
+                    fractional_var_idx = i
+                    max_fractional = fractional_part
+        
+        # If all integer, we found a solution!
         if all_integer:
             return assn
+        
+        # Branch on the most fractional variable
         value = float(assn[2*fractional_var_idx] - assn[2*fractional_var_idx+1])
         floor_value = math.floor(value)
         ceil_value = math.ceil(value)
+        
         if DEBUG:
-            print(f"{'  ' * depth} Branching on {vars[fractional_var_idx]}: {value}")
+            print(f"{'  ' * depth}Branching on {vars[fractional_var_idx]}: {value}")
             print(f"{'  ' * depth}  Branch 1: {vars[fractional_var_idx]} <= {floor_value}")
             print(f"{'  ' * depth}  Branch 2: {vars[fractional_var_idx]} >= {ceil_value}")
         
+        # Try branch 1: x_i <= floor(value)
         fixed_vars_left = fixed_vars.copy()
-        fixed_vars_left[fractional_var_idx] = floor_value
+        # Get existing bounds or set to None (unbounded)
+        existing = fixed_vars_left.get(fractional_var_idx, (None, None))
+        fixed_vars_left[fractional_var_idx] = (existing[0], floor_value)
         soln_left = self.branch_and_bound(depth + 1, fixed_vars_left)
         
+        # Try branch 2: x_i >= ceil(value)
         fixed_vars_right = fixed_vars.copy()
-        fixed_vars_right[fractional_var_idx] = ceil_value
+        existing = fixed_vars_right.get(fractional_var_idx, (None, None))
+        fixed_vars_right[fractional_var_idx] = (ceil_value, existing[1])
         soln_right = self.branch_and_bound(depth + 1, fixed_vars_right)
-
+        
+        # Return the first feasible solution found
         if soln_left is not None:
             return soln_left
         if soln_right is not None:
             return soln_right
+        
         return None
     
         # A, b, c, vars = self.tableau_args()
